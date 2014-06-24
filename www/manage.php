@@ -49,40 +49,58 @@ if (isset($_POST) && count($_POST)) {
 			$playerSelect = '<option value="">Select Player</option>';
 			$db->query("SELECT * FROM player LEFT JOIN team USING (teamID) ORDER BY CAST(number as unsigned), firstname, lastname, teamID");
 			while ($row = $db->fetch_assoc()) {
-				$nick = strlen($row['nickName']) ? " \"$row[nickName]\" " : '';
-				$thePlayer = "$row[number] $row[firstName]$nick$row[lastName] ($row[teamName])";
-				$playerSelect .= "<option value='$row[playerID]'>$thePlayer</option>";
+				$nick = strlen($row['nickName']) ? "\"$row[nickName]\" " : '';
+				$thePlayer = "$row[number] $row[firstName] $nick$row[lastName] ($row[teamName])";
+				$playerSelect .= "<option teamID='$row[teamID]' value='$row[playerID]'>$thePlayer</option>";
 			}
-			$return = $playerSelect;
+			$playerList = '';
+			$db->query("SELECT * FROM player LEFT JOIN team USING (teamID) ORDER BY teamID, CAST(number as unsigned), firstname, lastname");
+			while ($row = $db->fetch_assoc()) {
+				$nick = strlen($row['nickName']) ? "\"$row[nickName]\" " : '';
+				$thePlayer = "$row[number] $row[firstName] $nick$row[lastName] ($row[teamName])";
+				$playerList .= "$thePlayer<br>";
+			}
+			$return = array('selects'=>$playerSelect, 'list'=>$playerList);
 			break;
 		case 'game':
 			$rawDate = explode('-', $_POST['date']);
 			$rawTime = explode('-', $_POST['time']);
 			$theTime = mktime($rawTime[0], $rawTime[1], 0, $rawDate[1], $rawDate[2], $rawDate[0]);
 
-			$shots = array();
-			foreach ($_POST['homeShots'] as $pp=>$ss) $shots[$pp]['home'] = $ss;
-			foreach ($_POST['awayShots'] as $pp=>$ss) $shots[$pp]['away'] = $ss;
-			$shotsString = '';
-			$delim = '';
-			foreach ($shots as $pp=>$ss) {
-				$shotsString .= "$delim$ss[home]-$ss[away]";
-				$delim = ',';
-			}
 
 			//$q = $db->query("INSERT INTO game (gameTime, homeTeamID, awayTeamID, homeShots1, homeShots2, homeShots3, awayShots1, awayShots2, awayShots3, notes, homeGoalie, awayGoalie) VALUES ($theTime, $_POST[homeTeamID], $_POST[awayTeamID], $_POST[homeShots1], $_POST[homeShots2], $_POST[homeShots3], $_POST[awayShots1], $_POST[awayShots2], $_POST[awayShots3], '$_POST[notes]', '$_POST[homeGoalie]', '$_POST[awayGoalie]')");
 			$db->insert('game',
 				array(
+					'seasonID' => $_POST['seasonID'],
 					'gameTime' => $theTime,
 					'homeTeamID' => $_POST['homeTeamID'],
 					'awayTeamID' => $_POST['awayTeamID'],
-					'shots' => $shotsString,
+					//'shots' => $shotsString,
 					'homeGoalieID' => $_POST['homeGoalie'],
 					'awayGoalieID' => $_POST['awayGoalie'],
 					'notes' => $_POST['notes'],
 				)
 			);
 			$gameID = $db->insert_id();
+
+			$shots = array();
+			foreach ($_POST['homeShots'] as $pp=>$ss) $shots[$pp][] = array('team'=>$_POST['homeTeamID'], 'shots'=>$ss);
+			foreach ($_POST['awayShots'] as $pp=>$ss) $shots[$pp][] = array('team'=>$_POST['awayTeamID'], 'shots'=>$ss);
+			$shotsString = '';
+			$delim = '';
+			foreach ($shots as $pp=>$ss) {
+				foreach ($ss as $info) {
+					if ($pp > 3 && $info['shots'] < 1) continue;
+					$db->insert('shot',
+						array(
+							'gameID' => $gameID,
+							'teamID' => $info['team'],
+							'period' => $pp,
+							'shots' => $info['shots'],
+						)
+					);
+				}
+			}
 
 			foreach ($_POST['goals'] as $goal) {
 				if (strlen($goal['period']) < 1) continue;
@@ -99,24 +117,28 @@ if (isset($_POST) && count($_POST)) {
 						'eventTime' => $goalTime,
 					)
 				);
-				$db->insert('event',
-					array(
-						'gameID' => $gameID,
-						'playerID' => $goal['assist1'],
-						'period' => $goal['period'],
-						'eventType' => 'assist1',
-						'eventTime' => $goalTime,
-					)
-				);
-				$db->insert('event',
-					array(
-						'gameID' => $gameID,
-						'playerID' => $goal['assist2'],
-						'period' => $goal['period'],
-						'eventType' => 'assist2',
-						'eventTime' => $goalTime,
-					)
-				);
+				if ($goal['assist1'] > 0) {
+					$db->insert('event',
+						array(
+							'gameID' => $gameID,
+							'playerID' => $goal['assist1'],
+							'period' => $goal['period'],
+							'eventType' => 'assist1',
+							'eventTime' => $goalTime,
+						)
+					);
+				}
+				if ($goal['assist2'] > 0) {
+					$db->insert('event',
+						array(
+							'gameID' => $gameID,
+							'playerID' => $goal['assist2'],
+							'period' => $goal['period'],
+							'eventType' => 'assist2',
+							'eventTime' => $goalTime,
+						)
+					);
+				}
 			}
 
 			foreach ($_POST['pens'] as $pen) {
@@ -166,9 +188,17 @@ while ($row = $db->fetch_assoc()) {
 $playerSelect = '<option value="">Select Player</option>';
 $db->query("SELECT * FROM player LEFT JOIN team USING (teamID) ORDER BY CAST(number as unsigned), firstname, lastname, teamID");
 while ($row = $db->fetch_assoc()) {
-	$nick = strlen($row['nickName']) ? " \"$row[nickName]\" " : '';
-	$thePlayer = "$row[number] $row[firstName]$nick$row[lastName] ($row[teamName])";
-	$playerSelect .= "<option value='$row[playerID]'>$thePlayer</option>";
+	$nick = strlen($row['nickName']) ? "\"$row[nickName]\" " : '';
+	$thePlayer = "$row[number] $row[firstName] $nick$row[lastName] ($row[teamName])";
+	$playerSelect .= "<option teamID='$row[teamID]' value='$row[playerID]'>$thePlayer</option>";
+}
+
+$playerList = '';
+$db->query("SELECT * FROM player LEFT JOIN team USING (teamID) ORDER BY teamID, CAST(number as unsigned), firstname, lastname");
+while ($row = $db->fetch_assoc()) {
+	$nick = strlen($row['nickName']) ? "\"$row[nickName]\" " : '';
+	$thePlayer = "$row[number] $row[firstName] $nick$row[lastName] ($row[teamName])";
+	$playerList .= "$thePlayer<br>";
 }
 
 $homeGoalRows = '';
@@ -181,7 +211,7 @@ for ($ii = 1; $ii <= 20; $ii++) {
 		<tr>
 			<td><input type="hidden" name="goals[$count][$theVar]" value="yes"><input name="goals[$count][period]" size="3" type="text"></td>
 			<td><input name="goals[$count][clockMin]" size="3" placeholder="Min" type="text"> : <input name="goals[$count][clockSec]" size="3" placeholder="Sec"></td>
-			<td><select name="goals[$count][type]"><option value="goal">EV</option><option value="ppgoal">PP</option><option value="engoal">EN</option></select></td>
+			<td><select name="goals[$count][type]"><option value="goal">EV</option><option value="ppgoal">PP</option><option value="engoal">EN</option><option value="shgoal">SH</option></select></td>
 			<td><select class="playerSelect" name="goals[$count][scorer]">$playerSelect</select></td>
 			<td><select class="playerSelect" name="goals[$count][assist1]">$playerSelect</select></td>
 			<td><select class="playerSelect" name="goals[$count][assist2]">$playerSelect</select></td>
@@ -235,13 +265,15 @@ $_HEADER['pageJS'] = <<<JSEND
 				if (data.mode == 'player') {
 					$('select.playerSelect').each(function(ii, obj) {
 						var curSel = $(obj).val();
-						$(obj).html(data.data);
+						$(obj).html(data.data.selects);
 						$(obj).val(curSel);
 					});
-					$('form#addPlayer')[0].reset();
-					alert('Player Added');
+					$('#playerList').html(data.data.list);
+					$('form#addPlayer [type=text]').val('');
+					$('form#addPlayer [name=number]').focus();
 				}
 				if (data.mode == 'game') {
+					$('form#addGame')[0].reset();
 					alert('Game Added');
 				}
 			}, 'json');
@@ -252,6 +284,7 @@ JSEND;
 
 require_once('../include/header.inc.php');
 print <<<PAGEEND
+<div style="position: fixed; right: 10px; top: 10px;">
 <h2>Add Team</h2>
 <form id="addTeam" method="post">
 <input type="hidden" name="mode" value="team">
@@ -295,9 +328,13 @@ print <<<PAGEEND
 	</tr>
 </table>
 </form>
+<div id="playerList">
+$playerList
+</div>
+</div>
 
 <h2>Add Game</h2>
-<form method="post" action="add.php">
+<form id="addGame" method="post" action="add.php">
 <input type="hidden" name="mode" value="game">
 <table>
 	<tr>
