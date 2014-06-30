@@ -24,7 +24,8 @@ from game
 	LEFT JOIN player using (playerID)
 	LEFT JOIN team as homeTeam on (game.homeTeamID = homeTeam.teamID)
 	LEFT JOIN team as awayTeam on (game.awayTeamID = awayTeam.teamID)
-WHERE game.seasonID = ? AND event.eventType in ('goal','ppgoal','engoal','shgoal') GROUP BY gameID;
+WHERE game.seasonID = ? AND event.eventType in ('goal','ppgoal','engoal','shgoal') GROUP BY gameID
+ORDER BY gameTime DESC;
 SQLEND;
 $db->query($gameListSQL, array($seasonID));
 
@@ -71,13 +72,14 @@ where teamID = 1
 GROUP BY playerID
 ORDER BY $sort
 SQLEND;*/
-$sql = 'SELECT player.*, sum(G) G, sum(A) A, sum(PTS) PTS, sum(PIM) PIM FROM player_game_stat JOIN player USING (playerID) GROUP BY player_game_stat.playerID';
+$sql = "SELECT player.*, sum(G) G, sum(A) A, sum(PTS) PTS, sum(PIM) PIM FROM player_game_stat JOIN player USING (playerID) GROUP BY player_game_stat.playerID ORDER BY $sort";
 $db->query($sql);
 $playerRows = '';
 //$goalieRows = '';
 while ($row = $db->fetch_assoc()) {
+	if ($row['number'] === '?') continue;
 	if ($row['PTS'] || $row['PIM']) {
-		$lName = isset($row['lastName']) ? ' '.$row['lastName'][0].'.' : '';
+		$lName = (isset($row['lastName']) && strlen($row['lastName'])) ? ' '.$row['lastName'][0].'.' : '';
 		$thePlayer = "$row[firstName]$lName";
 		$playerRows .= <<<ROWEND
 			<tr>
@@ -96,6 +98,7 @@ $sql = 'SELECT player.*, SUM(GA) GA, SUM(SA) SA, SUM(W) W, SUM(L) L FROM goalie_
 $db->query($sql);
 $goalieRows = '';
 while ($row = $db->fetch_assoc()) {
+	if ($row['number'] === '?') continue;
 	if ($row['GA']) {
 		$lName = isset($row['lastName']) ? ' '.$row['lastName'][0].'.' : '';
 		$thePlayer = "$row[firstName]$lName";
@@ -103,7 +106,7 @@ while ($row = $db->fetch_assoc()) {
 		$SVP = ($row['SA'] > 0) ? number_format($SV / $row['SA'], 3) : 0;
 		$goalieRows .= <<<ROWEND
 			<tr>
-				<td><a href="player.php?player=$row[number]">$row[number]</a></td>
+				<td><a href="player.php?playerID=$row[playerID]">$row[number]</a></td>
 				<td>$thePlayer</td>
 				<td class="small">$row[W]-$row[L]</td>
 				<td class="small">$row[GA]</td>
@@ -116,6 +119,7 @@ ROWEND;
 }
 
 require_once('../include/header.inc.php');
+
 print <<<PAGEEND
 <h2>Games</h2>
 <table cellspacing="0" cellpadding="0">
@@ -137,10 +141,10 @@ print <<<PAGEEND
 	<tr class="bold">
 		<td><a href="index.php">#</a></td>
 		<td>Name</td>
-		<td class="small"><a href="?sort=goals">G</a></td>
-		<td class="small"><a href="?sort=assists">A</a></td>
-		<td class="small"><a href="?sort=points">PTS</a></td>
-		<td class="small"><a href="?sort=pim">PIM</a></td>
+		<td class="small"><a href="?sort=G">G</a></td>
+		<td class="small"><a href="?sort=A">A</a></td>
+		<td class="small"><a href="?sort=PTS">PTS</a></td>
+		<td class="small"><a href="?sort=PIM">PIM</a></td>
 	</tr>
 	$playerRows
 </table>

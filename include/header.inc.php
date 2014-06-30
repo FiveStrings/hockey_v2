@@ -31,3 +31,4 @@ $pageJS = (isset($_HEADER['pageJS'])) ? '<script type="text/javascript">'.$_HEAD
 <title>Red Beards Status System</title>
 </head>
 <body>
+<h1><img src="logo.png" style="height: 50px; margin-right: 15px;">Red Beards Stats System - Summer 2014</h1>

@@ -106,7 +106,7 @@ if (isset($_POST) && count($_POST)) {
 				if (strlen($goal['period']) < 1) continue;
 				$gMin = 15 - $goal['clockMin'];
 				$gSec = 60 - $goal['clockSec'];
-				$goalTime = ($gMin * 60) + ($gSec);
+				$goalTime = ($gMin * 60) + ($gSec) - 60;
 				$teamID = (isset($goal['home'])) ? $_POST['homeTeamID'] : $_POST['awayTeamID'];
 				$db->insert('event',
 					array(
@@ -145,14 +145,14 @@ if (isset($_POST) && count($_POST)) {
 				if (strlen($pen['period']) < 1) continue;
 				$gMin = 15 - $pen['clockMin'];
 				$gSec = 60 - $pen['clockSec'];
-				$penTime = ($gMin * 60) + ($gSec);
+				$penTime = ($gMin * 60) + ($gSec) - 60;
 				$teamID = (isset($pen['home'])) ? $_POST['homeTeamID'] : $_POST['awayTeamID'];
 				$db->insert('event',
 					array(
 						'gameID' => $gameID,
 						'playerID' => $pen['player'],
 						'period' => $pen['period'],
-						'penalty' => $pen['period'],
+						'penalty' => $pen['penalty'],
 						'penaltyMinutes' => $pen['minutes'],
 						'eventType' => $pen['type'],
 						'eventTime' => $penTime,
