@@ -100,7 +100,7 @@ $goalieRows = '';
 while ($row = $db->fetch_assoc()) {
 	if ($row['number'] === '?') continue;
 	if ($row['GA']) {
-		$lName = isset($row['lastName']) ? ' '.$row['lastName'][0].'.' : '';
+		$lName = (isset($row['lastName']) && strlen($row['lastName'])) ? ' '.$row['lastName'][0].'.' : '';
 		$thePlayer = "$row[firstName]$lName";
 		$SV = ($row['GA']) ? ($row['SA'] - $row['GA']) : 0;
 		$SVP = ($row['SA'] > 0) ? number_format($SV / $row['SA'], 3) : 0;
