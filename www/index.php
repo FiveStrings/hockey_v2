@@ -30,12 +30,16 @@ SQLEND;
 $db->query($gameListSQL, array($seasonID));
 
 $gameRows = '';
+$wRecord = 0;
+$lRecord = 0;
 while ($row = $db->fetch_assoc()) {
 	$theDate = date('D Y-m-d', $row['gameTime']);
 	$theTime = date('h:i:s a', $row['gameTime']);
 	$theAT = $row['homeTeamID'] == 1 ? "&nbsp;" : "@";
 	$theOpponent = $row['homeTeamID'] == 1 ? $row['awayTeamName'] : $row['homeTeamName'];
 	$theWin = ($row['homeTeamID'] == 1) ? ($row['homeGoals'] > $row['awayGoals'] ? "W" : "L") : ($row['homeGoals'] < $row['awayGoals'] ? "W" : "L"); 
+	if ($theWin == 'W') $wRecord++;
+	else $lRecord++;
 	$theOT = $row['isOT'];
 	$rbGoals = $row['homeTeamID'] == 1 ? $row['homeGoals'] : $row['awayGoals'];
 	$oppGoals = $row['homeTeamID'] == 1 ? $row['awayGoals'] : $row['homeGoals'];
@@ -121,7 +125,7 @@ ROWEND;
 require_once('../include/header.inc.php');
 
 print <<<PAGEEND
-<h2>Games</h2>
+<h2>Games - $wRecord-$lRecord for the season</h2>
 <table cellspacing="0" cellpadding="0">
 	<tr class="bold">
 		<td>Date</td>

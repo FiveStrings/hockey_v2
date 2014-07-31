@@ -7,6 +7,10 @@ if (isset($_POST) && count($_POST)) {
 
 	$return = '';
 	switch ($_POST['mode']) {
+		case 'updatestats':
+			$db->query('replace into goalie_game_stat (playerID, gameID, GA, SA, W, L) SELECT playerID, gameID, sum(GA) GA, sum(SA) SA, sum(W) W, sum(L) L FROM ( select player.playerID, game.gameID, count(distinct event.eventID) "GA", 0 "SA", 0 "W", 0 "L" FROM game join event using (gameID) join player as eventplayer on (eventplayer.playerID = event.playerID) join player on (player.playerID = homeGoalieID OR player.playerID = awayGoalieID) WHERE player.teamID = 1 AND eventplayer.teamID != 1 AND event.eventType in ("goal","ppgoal","shgoal") group by player.playerID, game.gameID UNION select player.playerID, game.gameID, 0 "GA", sum(shots) "SA", 0 "W", 0 "L" from game join player on (player.playerID = homeGoalieID OR player.playerID = awayGoalieID) join shot on (game.gameID = shot.gameID) WHERE shot.teamID != 1 AND player.teamID = 1 group by player.playerID, game.gameID UNION select player.playerID, game.gameID, 0 "GA", 0 "SA", sum(if(winners.teamID = player.teamID, 1, 0)) "W", sum(if(winners.teamID != player.teamID, 1, 0)) "L" FROM game JOIN (SELECT gameID, LEFT(group_concat(teamID), greatest(LOCATE(",", group_concat(teamID))-1,length(group_concat(teamID)))) teamID FROM (select gameID, teamID, sum(if(eventType in("goal","ppgoal","engoal","shgoal"), 1, 0)) goals FROM event join player using (playerID) GROUP BY event.gameID, teamID) x GROUP BY gameID ORDER BY gameID, goals DESC) winners using (gameID) JOIN player on (player.playerID = homeGoalieID OR player.playerID = awayGoalieID) WHERE player.teamID = 1 GROUP BY player.playerID, game.gameID) x GROUP BY playerID, gameID');
+			$db->query('replace into player_game_stat (playerID, gameID, G, A, PTS, PIM) SELECT player.playerID, gameID, sum(if(eventType in ("goal","ppgoal","engoal","shgoal"), 1, 0)) goals, sum(if(eventType in ("assist1","assist2"), 1, 0)) assists, sum(if(eventType in ("goal","ppgoal","engoal","shgoal","assist1","assist2"), 1, 0)) points, if(sum(penaltyMinutes) is null, 0, sum(penaltyMinutes)) pim from event join player using (playerID) where teamID = 1 GROUP BY playerID, gameID');
+			break;
 		case 'season':
 			$rawDate = explode('-', $_POST['date']);
 			$theTime = mktime(0, 0, 0, $rawDate[1], $rawDate[2], $rawDate[0]);
@@ -47,7 +51,7 @@ if (isset($_POST) && count($_POST)) {
 				)
 			);
 			$playerSelect = '<option value="">Select Player</option>';
-			$db->query("SELECT * FROM player LEFT JOIN team USING (teamID) ORDER BY CAST(number as unsigned), firstname, lastname, teamID");
+			$db->query("SELECT * FROM player LEFT JOIN team USING (teamID) ORDER BY teamID, CAST(number as unsigned), firstname, lastname");
 			while ($row = $db->fetch_assoc()) {
 				$nick = strlen($row['nickName']) ? "\"$row[nickName]\" " : '';
 				$thePlayer = "$row[number] $row[firstName] $nick$row[lastName] ($row[teamName])";
@@ -186,7 +190,7 @@ while ($row = $db->fetch_assoc()) {
 }
 
 $playerSelect = '<option value="">Select Player</option>';
-$db->query("SELECT * FROM player LEFT JOIN team USING (teamID) ORDER BY CAST(number as unsigned), firstname, lastname, teamID");
+$db->query("SELECT * FROM player LEFT JOIN team USING (teamID) ORDER BY teamID, CAST(number as unsigned), firstname, lastname");
 while ($row = $db->fetch_assoc()) {
 	$nick = strlen($row['nickName']) ? "\"$row[nickName]\" " : '';
 	$thePlayer = "$row[number] $row[firstName] $nick$row[lastName] ($row[teamName])";
@@ -274,6 +278,9 @@ $_HEADER['pageJS'] = <<<JSEND
 				}
 				if (data.mode == 'game') {
 					$('form#addGame')[0].reset();
+					alert('Game Added');
+				}
+				if (data.mode == 'updatestats') {
 					alert('Game Added');
 				}
 			}, 'json');
@@ -471,6 +478,11 @@ $playerList
 		<td colspan="2"><input type="submit"></td>
 	</tr>
 </table>
+</form>
+
+<form id="updateStats" method="post">
+<input type="hidden" name="mode" value="updatestats">
+<input value="Update Stats Manually" type="submit">
 </form>
 PAGEEND;
 require_once('../include/footer.inc.php');

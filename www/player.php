@@ -56,11 +56,11 @@ while ($row = $db->fetch_assoc()) $games[$row['gameID']] = $row;
 	ORDER BY gameTime DESC
 SQLEND;*/
 $playerStats = array();
-$sql = 'SELECT * FROM player JOIN player_game_stat USING (playerID) WHERE player.playerID = ?';
+$sql = 'SELECT player_game_stat.*, player.* FROM player JOIN player_game_stat USING (playerID) JOIN game USING (gameID) WHERE player.playerID = ? ORDER BY game.gameTime';
 $db->query($sql, array($_GET['playerID']));
 while ($row = $db->fetch_assoc()) $playerStats[$row['gameID']] = $row;
 
-$sql = 'SELECT * FROM player JOIN goalie_game_stat USING (playerID) WHERE player.playerID = ?';
+$sql = 'SELECT goalie_game_stat.*, player.* FROM player JOIN goalie_game_stat USING (playerID) JOIN game USING (gameID) WHERE player.playerID = ? ORDER BY game.gameTime';
 $db->query($sql, array($_GET['playerID']));
 while ($row = $db->fetch_assoc()) {
 	if (isset($playerStats[$row['gameID']])) $playerStats[$row['gameID']] = array_merge($playerStats[$row['gameID']], $row);
